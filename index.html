@@ -16,6 +16,7 @@ select { font-size: 12px; padding: 4px 10px; border: 1px solid #444; border-radi
 .btn:hover { background: #2a2a3e; }
 .btn-danger { border-color: #c0392b; color: #e74c3c; }
 .btn-danger:hover { background: #2a1515; }
+.btn.on { background: #1a3a5c; border-color: #4a9edd; color: #a0c4ff; }
 .canvases { display: flex; gap: 12px; flex-wrap: wrap; }
 canvas { border-radius: 8px; border: 1px solid #333; cursor: crosshair; }
 #map-canvas { background: #0d0d1a; }
@@ -39,6 +40,7 @@ canvas { border-radius: 8px; border: 1px solid #333; cursor: crosshair; }
       <option value="like">Like Charges (+ + )</option>
     </select>
     <button class="btn btn-danger" onclick="clearAll()">Clear Probes</button>
+    <button class="btn" id="btn-spikes" onclick="toggleSpikes()">📍 Spikes: ON</button>
   </div>
   <div class="canvases">
     <div>
@@ -297,78 +299,143 @@ function proj(nx, ny, nz) {
   return [W/2 + x2*scale*fov, H/2 - y2*scale*fov, z2];
 }
 
+let showSpikes = true;
+
+function toggleSpikes() {
+  showSpikes = !showSpikes;
+  const btn = document.getElementById('btn-spikes');
+  btn.textContent = '📍 Spikes: ' + (showSpikes ? 'ON' : 'OFF');
+  btn.classList.toggle('on', showSpikes);
+  draw3D();
+}
+
+// IDW interpolation: estimate voltage at (qx,qy) from probes
+// Returns null if no probes yet
+function idw(qx, qy) {
+  if (probes.length === 0) return null;
+  let wsum = 0, vsum = 0;
+  for (const p of probes) {
+    const dx = qx - p.mx, dy = qy - p.my;
+    const d2 = dx*dx + dy*dy;
+    if (d2 < 0.01) return p.v; // exactly on a probe
+    const w = 1 / (d2 * d2); // power=4 for smoother falloff
+    wsum += w;
+    vsum += w * p.v;
+  }
+  return vsum / wsum;
+}
+
 function draw3D() {
   sc.clearRect(0, 0, W, H);
   sc.fillStyle = '#0d0d1a';
   sc.fillRect(0, 0, W, H);
 
-  const src = cfgs[cfg].src;
-  let vmin, vmax;
-  if (probes.length > 1) {
-    const vs = probes.map(p => p.v).slice().sort((a,b) => a-b);
-    const lo = Math.floor(vs.length * 0.02), hi = Math.ceil(vs.length * 0.98) - 1;
-    vmin = vs[Math.max(0,lo)]; vmax = vs[Math.min(vs.length-1,hi)];
-    if (vmax - vmin < 1) { vmin -= 1; vmax += 1; }
-  } else {
-    vmin = -15; vmax = 15;
+  if (probes.length === 0) {
+    sc.fillStyle = '#444';
+    sc.font = '13px system-ui';
+    sc.textAlign = 'center';
+    sc.textBaseline = 'middle';
+    sc.fillText('Click the map to start building the surface', W/2, H/2);
+    sc.fillStyle = '#666'; sc.font = '10px system-ui';
+    sc.textBaseline = 'bottom';
+    sc.fillText('drag to rotate', W/2, H-3);
+    return;
   }
 
-  const GX = 36, GY = 30;
-  // Build grid of sampled values (only where probes are nearby)
-  const grid = {};
-  for (const p of probes) {
-    const gi = Math.round(p.mx/W * GX);
-    const gj = Math.round(p.my/H * GY);
-    const key = gi + '_' + gj;
-    if (!grid[key]) grid[key] = [];
-    grid[key].push(p.v);
+  // Compute vmin/vmax from probes (percentile)
+  const vs = probes.map(p => p.v).slice().sort((a,b) => a-b);
+  const lo = Math.floor(vs.length * 0.02), hi = Math.ceil(vs.length * 0.98) - 1;
+  let vmin = vs[Math.max(0,lo)], vmax = vs[Math.min(vs.length-1,hi)];
+  if (vmax - vmin < 1) { vmin -= 1; vmax += 1; }
+
+  const toNZ = v => (v - vmin) / (vmax - vmin + 0.001) * 1.4 - 0.7;
+
+  // Build a dense grid via IDW — every cell gets a value
+  const GX = 40, GY = 34;
+  const grid = new Float32Array(GX * GY); // height at each vertex
+  const hasData = new Uint8Array(GX * GY);
+
+  // Only fill grid vertices that are within the convex "coverage" of probes.
+  // Use a simple max-distance cutoff so unprobed regions stay flat at z=-0.7.
+  // Find bounding radius of probe set for cutoff scaling.
+  const maxReach = Math.max(W, H) * 0.55; // within ~half the canvas
+
+  for (let j = 0; j < GY; j++) {
+    for (let i = 0; i < GX; i++) {
+      const px = (i / (GX-1)) * W;
+      const py = (j / (GY-1)) * H;
+      // Find nearest probe distance
+      let nearestD2 = Infinity;
+      for (const p of probes) {
+        const d2 = (px-p.mx)**2 + (py-p.my)**2;
+        if (d2 < nearestD2) nearestD2 = d2;
+      }
+      const idx = j * GX + i;
+      if (nearestD2 < maxReach * maxReach) {
+        const v = idw(px, py);
+        grid[idx] = toNZ(v);
+        hasData[idx] = 1;
+      } else {
+        grid[idx] = toNZ(0); // flat baseline for unvisited regions
+        hasData[idx] = 0;
+      }
+    }
   }
 
-  // Draw quads — only cells with at least one probe corner
+  // Build quads, project, depth-sort, draw
   const quads = [];
-  for (let i = 0; i < GX; i++) {
-    for (let j = 0; j < GY; j++) {
-      const corners = [
-        grid[i+'_'+j], grid[(i+1)+'_'+j],
-        grid[i+'_'+(j+1)], grid[(i+1)+'_'+(j+1)]
-      ];
-      const vals = corners.filter(Boolean).map(arr => arr.reduce((a,b)=>a+b,0)/arr.length);
-      if (vals.length === 0) continue;
-      const vA = vals.reduce((a,b)=>a+b,0)/vals.length;
-      const nz = v => (v-vmin)/(vmax-vmin+.001)*1.4-.5;
-      const nx0 = i/GX*2-1, nx1 = (i+1)/GX*2-1;
-      const ny0 = j/GY*2-1, ny1 = (j+1)/GY*2-1;
-      const p00 = proj(nx0,ny0,nz(vA)), p10 = proj(nx1,ny0,nz(vA));
-      const p01 = proj(nx0,ny1,nz(vA)), p11 = proj(nx1,ny1,nz(vA));
-      const az = (p00[2]+p10[2]+p01[2]+p11[2])/4;
-      quads.push({ vA, p00, p10, p01, p11, az, full: vals.length===4 });
+  for (let j = 0; j < GY-1; j++) {
+    for (let i = 0; i < GX-1; i++) {
+      const i00 = j*GX+i, i10 = j*GX+(i+1), i01 = (j+1)*GX+i, i11 = (j+1)*GX+(i+1);
+      const nz00 = grid[i00], nz10 = grid[i10], nz01 = grid[i01], nz11 = grid[i11];
+      const vAvgNorm = (nz00+nz10+nz01+nz11)/4; // −0.7 to +0.7
+      const vAvg = (vAvgNorm + 0.7) / 1.4 * (vmax-vmin) + vmin;
+
+      const nx0 = (i/(GX-1))*2-1,   nx1 = ((i+1)/(GX-1))*2-1;
+      const ny0 = (j/(GY-1))*2-1,   ny1 = ((j+1)/(GY-1))*2-1;
+
+      const p00 = proj(nx0, ny0, nz00);
+      const p10 = proj(nx1, ny0, nz10);
+      const p11 = proj(nx1, ny1, nz11);
+      const p01 = proj(nx0, ny1, nz01);
+      const az = (p00[2]+p10[2]+p11[2]+p01[2])/4;
+      const covered = hasData[i00]||hasData[i10]||hasData[i01]||hasData[i11];
+      quads.push({ vAvg, p00, p10, p11, p01, az, covered });
     }
   }
   quads.sort((a,b) => b.az - a.az);
 
-  for (const { vA, p00, p10, p01, p11, full } of quads) {
-    const [r,g,b] = vc(vA, vmin, vmax);
-    sc.fillStyle = `rgba(${r},${g},${b},${full ? 0.82 : 0.38})`;
-    sc.strokeStyle = `rgba(${r},${g},${b},0.2)`;
-    sc.lineWidth = 0.5;
+  for (const { vAvg, p00, p10, p11, p01, covered } of quads) {
+    const [r,g,b] = vc(vAvg, vmin, vmax);
+    const alpha = covered ? 0.88 : 0.18;
+    sc.fillStyle = `rgba(${r},${g},${b},${alpha})`;
+    sc.strokeStyle = `rgba(${r},${g},${b},${covered ? 0.25 : 0.08})`;
+    sc.lineWidth = 0.4;
     sc.beginPath();
-    sc.moveTo(p00[0],p00[1]); sc.lineTo(p10[0],p10[1]);
-    sc.lineTo(p11[0],p11[1]); sc.lineTo(p01[0],p01[1]);
-    sc.closePath(); sc.fill(); sc.stroke();
+    sc.moveTo(p00[0],p00[1]);
+    sc.lineTo(p10[0],p10[1]);
+    sc.lineTo(p11[0],p11[1]);
+    sc.lineTo(p01[0],p01[1]);
+    sc.closePath();
+    sc.fill();
+    sc.stroke();
   }
 
-  // Probe spikes
-  for (const p of probes) {
-    const nx = p.mx/W*2-1, ny = p.my/H*2-1;
-    const nz = (p.v-vmin)/(vmax-vmin+.001)*1.4-.5;
-    const [px,py] = proj(nx, ny, nz);
-    const [bx,by] = proj(nx, ny, -0.5);
-    const [r,g,b] = vc(p.v, vmin, vmax);
-    sc.strokeStyle = `rgba(${r},${g},${b},0.85)`; sc.lineWidth = 1.5;
-    sc.beginPath(); sc.moveTo(bx,by); sc.lineTo(px,py); sc.stroke();
-    sc.beginPath(); sc.arc(px, py, 4, 0, Math.PI*2);
-    sc.fillStyle = `rgb(${r},${g},${b})`; sc.fill();
-    sc.strokeStyle = 'rgba(0,0,0,0.25)'; sc.lineWidth = 0.8; sc.stroke();
+  // Probe spikes (toggleable)
+  if (showSpikes) {
+    const baseNZ = toNZ(0) - 0.02; // floor of surface
+    for (const p of probes) {
+      const nx = p.mx/W*2-1, ny = p.my/H*2-1;
+      const nz = toNZ(p.v);
+      const [px2,py2] = proj(nx, ny, nz);
+      const [bx,by] = proj(nx, ny, baseNZ);
+      const [r,g,b] = vc(p.v, vmin, vmax);
+      sc.strokeStyle = `rgba(${r},${g},${b},0.9)`; sc.lineWidth = 1.5;
+      sc.beginPath(); sc.moveTo(bx,by); sc.lineTo(px2,py2); sc.stroke();
+      sc.beginPath(); sc.arc(px2, py2, 4, 0, Math.PI*2);
+      sc.fillStyle = `rgb(${r},${g},${b})`; sc.fill();
+      sc.strokeStyle = 'rgba(255,255,255,0.3)'; sc.lineWidth = 0.8; sc.stroke();
+    }
   }
 
   sc.fillStyle = '#666'; sc.font = '10px system-ui';
