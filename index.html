@@ -122,7 +122,7 @@ function gv(px, py, src) {
       v += bv;
     }
   }
-  return Math.max(-20, Math.min(20, v));
+  return v;
 }
 
 // Voltage → RGB color (blue neg, white zero, red pos)
@@ -207,11 +207,13 @@ function draw2D() {
   mc.fillRect(0, 0, W, H);
   const src = cfgs[cfg].src;
 
-  // Find range
-  let vmin = Infinity, vmax = -Infinity;
-  for (let y = 10; y < H; y += 10) for (let x = 10; x < W; x += 10) {
-    const v = gv(x, y, src); if (v < vmin) vmin = v; if (v > vmax) vmax = v;
-  }
+  // Find range using percentile clamp (avoids spikes near point sources dominating scale)
+  const samples = [];
+  for (let y = 10; y < H; y += 10) for (let x = 10; x < W; x += 10) samples.push(gv(x, y, src));
+  samples.sort((a,b) => a-b);
+  const lo = Math.floor(samples.length * 0.02), hi = Math.ceil(samples.length * 0.98);
+  let vmin = samples[lo], vmax = samples[hi];
+  if (vmax - vmin < 1) { vmin -= 1; vmax += 1; }
 
   // Background gradient (faint)
   const id = mc.createImageData(W, H);
@@ -278,18 +280,21 @@ function draw2D() {
   }
 }
 
-// 3D projection
+// 3D projection — azimuth (rot.y) spins horizontally, elevation (rot.x) tilts up/down
 function proj(nx, ny, nz) {
-  const cosX = Math.cos(rot.x), sinX = Math.sin(rot.x);
-  const cosY = Math.cos(rot.y), sinY = Math.sin(rot.y);
-  // Rotate around Y then X
-  const x1 = nx*cosY - nz*sinY;
-  const z1 = nx*sinY + nz*cosY;
-  const y1 = ny*cosX - z1*sinX;
-  const z2 = ny*sinX + z1*cosX;
+  // Rotate around world Z-axis (azimuth) — spins scene left/right
+  const cosA = Math.cos(rot.y), sinA = Math.sin(rot.y);
+  const x1 =  nx*cosA + ny*sinA;
+  const y1 = -nx*sinA + ny*cosA;
+  const z1 = nz;
+  // Rotate around new X-axis (elevation) — tilts up/down
+  const cosE = Math.cos(rot.x), sinE = Math.sin(rot.x);
+  const x2 = x1;
+  const y2 = y1*cosE - z1*sinE;
+  const z2 = y1*sinE + z1*cosE;
   const scale = 180;
   const fov = 2.5 / (z2 + 3);
-  return [W/2 + x1*scale*fov, H/2 - y1*scale*fov, z2];
+  return [W/2 + x2*scale*fov, H/2 - y2*scale*fov, z2];
 }
 
 function draw3D() {
@@ -298,11 +303,14 @@ function draw3D() {
   sc.fillRect(0, 0, W, H);
 
   const src = cfgs[cfg].src;
-  let vmin = -12, vmax = 12;
-  if (probes.length > 0) {
-    vmin = Math.min(...probes.map(p => p.v));
-    vmax = Math.max(...probes.map(p => p.v));
-    if (vmax - vmin < 2) { vmin -= 1; vmax += 1; }
+  let vmin, vmax;
+  if (probes.length > 1) {
+    const vs = probes.map(p => p.v).slice().sort((a,b) => a-b);
+    const lo = Math.floor(vs.length * 0.02), hi = Math.ceil(vs.length * 0.98) - 1;
+    vmin = vs[Math.max(0,lo)]; vmax = vs[Math.min(vs.length-1,hi)];
+    if (vmax - vmin < 1) { vmin -= 1; vmax += 1; }
+  } else {
+    vmin = -15; vmax = 15;
   }
 
   const GX = 36, GY = 30;
