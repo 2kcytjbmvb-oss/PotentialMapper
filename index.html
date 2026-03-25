@@ -8,55 +8,71 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: system-ui, sans-serif; background: #1a1a2e; color: #e0e0e0; min-height: 100vh; }
 #app { max-width: 1100px; margin: 0 auto; padding: 1rem; }
-h1 { font-size: 1.1rem; font-weight: 600; color: #a0c4ff; margin-bottom: 0.5rem; letter-spacing: 0.02em; }
-.controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
-.ctrl-label { font-size: 12px; color: #888; }
+h1 { font-size: 1.1rem; font-weight: 600; color: #a0c4ff; margin-bottom: 0.6rem; letter-spacing: 0.02em; }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 7px; }
+.ctrl-label { font-size: 12px; color: #888; white-space: nowrap; }
 select { font-size: 12px; padding: 4px 10px; border: 1px solid #444; border-radius: 6px; background: #2a2a3e; color: #e0e0e0; cursor: pointer; }
-.btn { font-size: 12px; padding: 4px 14px; border: 1px solid #444; border-radius: 6px; background: transparent; color: #ccc; cursor: pointer; }
+.btn { font-size: 12px; padding: 4px 13px; border: 1px solid #444; border-radius: 6px; background: transparent; color: #ccc; cursor: pointer; white-space: nowrap; }
 .btn:hover { background: #2a2a3e; }
-.btn-danger { border-color: #c0392b; color: #e74c3c; }
-.btn-danger:hover { background: #2a1515; }
-.btn.on { background: #1a3a5c; border-color: #4a9edd; color: #a0c4ff; }
-.canvases { display: flex; gap: 12px; flex-wrap: wrap; }
-canvas { border-radius: 8px; border: 1px solid #333; cursor: crosshair; }
-#map-canvas { background: #0d0d1a; }
-#surface-canvas { background: #0d0d1a; cursor: grab; }
+.btn.on  { background: #1a3a5c; border-color: #4a9edd; color: #a0c4ff; }
+.btn.danger { border-color: #c0392b; color: #e74c3c; }
+.btn.danger:hover { background: #2a1515; }
+.sep { width: 1px; height: 20px; background: #333; flex-shrink: 0; }
+.canvases { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px; }
+canvas { border-radius: 8px; border: 1px solid #333; cursor: crosshair; display: block; }
+#surface-canvas { cursor: grab; }
+.canvas-wrap { display: flex; flex-direction: column; }
+.canvas-label { font-size: 11px; color: #666; margin-bottom: 3px; }
 .info-bar { margin-top: 8px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
 #vbadge { font-size: 1.1rem; font-weight: 700; color: #a0c4ff; min-width: 60px; }
 #stat { font-size: 12px; color: #777; }
-.legend { font-size: 11px; color: #666; margin-top: 6px; }
-.canvas-label { font-size: 11px; color: #666; margin-bottom: 3px; }
+.legend { font-size: 11px; color: #555; margin-top: 5px; }
 </style>
 </head>
 <body>
 <div id="app">
-  <h1>⚡ Electric Potential Mapper</h1>
-  <div class="controls">
-    <span class="ctrl-label">Configuration:</span>
+  <h1>&#9889; Electric Potential Mapper</h1>
+
+  <div class="row">
+    <span class="ctrl-label">Config:</span>
     <select id="cfg">
-      <option value="bars">Parallel Bars (+ top, − bottom)</option>
-      <option value="dipole">Point Charges (+ left, − right)</option>
+      <option value="infplates">Infinite Parallel Plates (+/-10 V)</option>
+      <option value="bars">Finite Parallel Bars (+/-10 V)</option>
+      <option value="dipole">Point Charges (+ / -)</option>
+      <option value="like">Like Charges (+ / +)</option>
       <option value="barpt">Bar + Point Charge</option>
-      <option value="like">Like Charges (+ + )</option>
     </select>
-    <button class="btn btn-danger" onclick="clearAll()">Clear Probes</button>
-    <button class="btn" id="btn-spikes" onclick="toggleSpikes()">📍 Spikes: ON</button>
+    <button class="btn danger" onclick="clearAll()">x Clear Probes</button>
   </div>
+
+  <div class="row">
+    <span class="ctrl-label">Reveal:</span>
+    <button class="btn" id="btn-eq" onclick="toggleEq()">Equipotentials: OFF</button>
+    <select id="eq-step" onchange="draw2D()">
+      <option value="5">every 5 V</option>
+      <option value="10">every 10 V</option>
+    </select>
+    <button class="btn" id="btn-ef" onclick="toggleEf()">E-field Lines: OFF</button>
+    <div class="sep"></div>
+    <button class="btn on" id="btn-spikes" onclick="toggleSpikes()">Spikes: ON</button>
+  </div>
+
   <div class="canvases">
-    <div>
-      <div class="canvas-label">📍 Click to probe voltage</div>
+    <div class="canvas-wrap">
+      <div class="canvas-label">Click to probe voltage</div>
       <canvas id="map-canvas" width="480" height="400"></canvas>
     </div>
-    <div>
-      <div class="canvas-label">🔄 Drag to rotate 3D surface</div>
+    <div class="canvas-wrap">
+      <div class="canvas-label">Drag to rotate 3D surface</div>
       <canvas id="surface-canvas" width="480" height="400"></canvas>
     </div>
   </div>
+
   <div class="info-bar">
     <div id="vbadge"></div>
-    <div id="stat">0 probes — click the map to begin</div>
+    <div id="stat">0 probes - click the map to begin</div>
   </div>
-  <div class="legend">Red = high potential (+V) · Blue = low potential (−V) · Click anywhere on the map to reveal voltage · 3D surface builds from your probes</div>
+  <div class="legend">Red = high (+V) | Blue = low (-V) | Hover to preview voltage | Click to record a probe point</div>
 </div>
 
 <script>
@@ -65,45 +81,59 @@ const SC = document.getElementById('surface-canvas');
 const mc = MC.getContext('2d');
 const sc = SC.getContext('2d');
 const W = MC.width, H = MC.height;
-let probes = [], drag = null, rotStart = { x: 0, y: 0 };
-let rot = { x: 0.55, y: -0.6 };
-let cfg = 'bars';
 
-// Configurations: t='bar' needs x,y (0-1 normalized center), l=length fraction, v=voltage
-//                 t='pt'  needs x,y (0-1 normalized), v=voltage, strength
+let probes = [], drag = null, rotStart = {x:0,y:0};
+let rot = {x:0.18, y:0.0};
+let cfg = 'infplates';
+let showEq = false, showEf = false, showSpikes = true;
+
+// ---- CONFIGURATIONS ----
 const cfgs = {
-  bars: {
-    label: 'Parallel Bars',
+  infplates: {
     src: [
-      { t:'bar', x:0.5, y:0.18, l:0.7, v:10,  col:'#e74c3c' },
-      { t:'bar', x:0.5, y:0.82, l:0.7, v:-10, col:'#3498db' }
+      {t:'inf', y:0.2, v:+10, col:'#e74c3c'},
+      {t:'inf', y:0.8, v:-10, col:'#3498db'}
+    ]
+  },
+  bars: {
+    src: [
+      {t:'bar', x:0.5, y:0.18, l:0.7, v:+10, col:'#e74c3c'},
+      {t:'bar', x:0.5, y:0.82, l:0.7, v:-10, col:'#3498db'}
     ]
   },
   dipole: {
-    label: 'Point Dipole',
     src: [
-      { t:'pt', x:0.33, y:0.5, v:12, col:'#e74c3c' },
-      { t:'pt', x:0.67, y:0.5, v:-12, col:'#3498db' }
-    ]
-  },
-  barpt: {
-    label: 'Bar + Point',
-    src: [
-      { t:'bar', x:0.5, y:0.15, l:0.65, v:10, col:'#e74c3c' },
-      { t:'pt',  x:0.5, y:0.72, v:-10, col:'#3498db' }
+      {t:'pt', x:0.33, y:0.5, v:+12, col:'#e74c3c'},
+      {t:'pt', x:0.67, y:0.5, v:-12, col:'#3498db'}
     ]
   },
   like: {
-    label: 'Like Charges',
     src: [
-      { t:'pt', x:0.33, y:0.5, v:12, col:'#e74c3c' },
-      { t:'pt', x:0.67, y:0.5, v:12, col:'#e74c3c' }
+      {t:'pt', x:0.33, y:0.5, v:+12, col:'#e74c3c'},
+      {t:'pt', x:0.67, y:0.5, v:+12, col:'#e74c3c'}
+    ]
+  },
+  barpt: {
+    src: [
+      {t:'bar', x:0.5, y:0.15, l:0.65, v:+10, col:'#e74c3c'},
+      {t:'pt',  x:0.5, y:0.72,          v:-10, col:'#3498db'}
     ]
   }
 };
 
-// Compute voltage at pixel (px,py) given sources
+// ---- PHYSICS ----
+
 function gv(px, py, src) {
+  // Special case: if any source is 'inf', handle analytically
+  const infSrcs = src.filter(s => s.t === 'inf');
+  if (infSrcs.length === 2) {
+    const plates = infSrcs.slice().sort((a,b) => a.y - b.y);
+    const y0 = plates[0].y * H, v0 = plates[0].v;
+    const y1 = plates[1].y * H, v1 = plates[1].v;
+    if (py <= y0) return v0;
+    if (py >= y1) return v1;
+    return v0 + (py - y0) / (y1 - y0) * (v1 - v0);
+  }
   let v = 0;
   for (const s of src) {
     if (s.t === 'pt') {
@@ -111,403 +141,420 @@ function gv(px, py, src) {
       const r = Math.sqrt(dx*dx + dy*dy) + 0.04;
       v += s.v / r;
     } else if (s.t === 'bar') {
-      // Bar: integrate over length
       const cx = s.x*W, cy = s.y*H, hw = s.l*W/2;
-      let bv = 0;
-      const N = 30;
+      const N = 40;
       for (let k = 0; k < N; k++) {
-        const bx = cx - hw + (k + 0.5)*(hw*2/N);
-        const dx = (px - bx)/W*2.2, dy = (py - cy)/H*1.8;
+        const bx = cx - hw + (k+0.5)*(hw*2/N);
+        const dx = (px-bx)/W*2.2, dy = (py-cy)/H*1.8;
         const r = Math.sqrt(dx*dx + dy*dy) + 0.04;
-        bv += s.v / (r * N);
+        v += s.v / (r * N);
       }
-      v += bv;
     }
   }
   return v;
 }
 
-// Voltage → RGB color (blue neg, white zero, red pos)
+function gE(px, py, src) {
+  const h = 2;
+  return [
+    -(gv(px+h,py,src) - gv(px-h,py,src)) / (2*h),
+    -(gv(px,py+h,src) - gv(px,py-h,src)) / (2*h)
+  ];
+}
+
+// ---- COLOR ----
 function vc(v, vmin, vmax) {
-  const t = (v - vmin) / (vmax - vmin + 0.001);
+  const t = Math.max(0, Math.min(1, (v - vmin) / (vmax - vmin + 0.001)));
   if (t < 0.5) {
     const s = t * 2;
-    return [Math.round(30 + s*200), Math.round(60 + s*160), Math.round(220 - s*20)];
+    return [Math.round(30+s*200), Math.round(60+s*160), Math.round(220-s*20)];
   } else {
-    const s = (t - 0.5) * 2;
-    return [Math.round(230 + s*15), Math.round(220 - s*180), Math.round(200 - s*190)];
+    const s = (t-0.5)*2;
+    return [Math.round(230+s*15), Math.round(220-s*180), Math.round(200-s*190)];
   }
 }
 
-// Pre-render background voltage field as image
-function bgImage(src) {
-  const id = mc.createImageData(W, H);
-  const d = id.data;
-  // Find vmin/vmax for normalization
-  let vmin = Infinity, vmax = -Infinity;
-  const step = 8;
-  for (let y = 0; y < H; y += step) {
-    for (let x = 0; x < W; x += step) {
-      const v = gv(x, y, src);
-      if (v < vmin) vmin = v;
-      if (v > vmax) vmax = v;
+// ---- FIELD LINE TRACING ----
+function traceFieldLine(sx, sy, src) {
+  const pts = [[sx,sy]];
+  let x=sx, y=sy;
+  const step=4, maxSteps=500;
+  for (let i=0; i<maxSteps; i++) {
+    const [Ex,Ey] = gE(x,y,src);
+    const mag = Math.sqrt(Ex*Ex+Ey*Ey);
+    if (mag < 1e-6) break;
+    x += (Ex/mag)*step;
+    y += (Ey/mag)*step;
+    if (x<2||x>W-2||y<2||y>H-2) break;
+    pts.push([x,y]);
+    // stop near negative sources
+    let near=false;
+    for (const s of src) {
+      if (s.t==='pt'&&s.v<0&&Math.sqrt((x-s.x*W)**2+(y-s.y*H)**2)<14) {near=true;break;}
+      if (s.t==='bar'&&s.v<0&&Math.abs(y-s.y*H)<8&&x>s.x*W-s.l*W/2&&x<s.x*W+s.l*W/2) {near=true;break;}
+      if (s.t==='inf'&&s.v<0&&Math.abs(y-s.y*H)<6) {near=true;break;}
     }
+    if (near) break;
   }
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      const v = gv(x, y, src);
-      const [r, g, b] = vc(v, vmin, vmax);
-      const i = (y*W + x)*4;
-      d[i] = r; d[i+1] = g; d[i+2] = b; d[i+3] = 60;
-    }
-  }
-  return id;
+  return pts;
 }
 
-// Draw equipotential lines using marching squares (simplified)
-function drawEquipotentials(src, vmin, vmax) {
+function drawArrow(ctx, x1,y1,x2,y2,col) {
+  const dx=x2-x1,dy=y2-y1,len=Math.sqrt(dx*dx+dy*dy);
+  if (len<2) return;
+  const ux=dx/len,uy=dy/len,as=7;
+  ctx.beginPath();
+  ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-ux*as-uy*as*0.5, y2-uy*as+ux*as*0.5);
+  ctx.lineTo(x2-ux*as+uy*as*0.5, y2-uy*as-ux*as*0.5);
+  ctx.closePath();
+  ctx.fillStyle=col; ctx.fill();
+}
+
+function drawEfieldLines(src) {
   mc.save();
-  const levels = [];
-  for (let i = 1; i <= 9; i++) levels.push(vmin + (vmax - vmin) * i / 10);
-  const GS = 8;
-  for (const lv of levels) {
-    const [r, g, b] = vc(lv, vmin, vmax);
-    mc.strokeStyle = `rgba(${r},${g},${b},0.5)`;
-    mc.lineWidth = 0.8;
-    mc.beginPath();
-    for (let y = GS; y < H; y += GS) {
-      for (let x = GS; x < W; x += GS) {
-        const v00 = gv(x-GS, y-GS, src), v10 = gv(x, y-GS, src);
-        const v01 = gv(x-GS, y, src),    v11 = gv(x, y, src);
-        // Simple crossing check on each edge
-        if ((v00 < lv) !== (v10 < lv)) {
-          const t = (lv - v00)/(v10 - v00);
-          const px1 = x - GS + t*GS, py1 = y - GS;
-          if ((v00 < lv) !== (v01 < lv)) {
-            const t2 = (lv - v00)/(v01 - v00);
-            mc.moveTo(px1, py1); mc.lineTo(x - GS, y - GS + t2*GS);
-          }
-          if ((v10 < lv) !== (v11 < lv)) {
-            const t2 = (lv - v10)/(v11 - v10);
-            mc.moveTo(px1, py1); mc.lineTo(x, y - GS + t2*GS);
-          }
-          if ((v01 < lv) !== (v11 < lv)) {
-            const t2 = (lv - v01)/(v11 - v01);
-            mc.moveTo(px1, py1); mc.lineTo(x - GS + t2*GS, y);
-          }
-        }
+  const seeds = [];
+  for (const s of src) {
+    if (s.v <= 0) continue;
+    if (s.t==='pt') {
+      for (let k=0;k<12;k++) {
+        const a=(k/12)*Math.PI*2;
+        seeds.push([s.x*W+Math.cos(a)*16, s.y*H+Math.sin(a)*16]);
       }
+    } else if (s.t==='bar') {
+      const cx=s.x*W,cy=s.y*H,hw=s.l*W/2;
+      for (let k=0;k<10;k++) {
+        const bx=cx-hw*0.85+k/9*hw*1.7;
+        seeds.push([bx, cy+10]);
+      }
+    } else if (s.t==='inf') {
+      for (let k=0;k<9;k++) seeds.push([(k+1)/10*W, s.y*H+9]);
     }
+  }
+  for (const [sx,sy] of seeds) {
+    const pts = traceFieldLine(sx,sy,src);
+    if (pts.length<3) continue;
+    mc.beginPath();
+    mc.moveTo(pts[0][0],pts[0][1]);
+    for (let i=1;i<pts.length;i++) mc.lineTo(pts[i][0],pts[i][1]);
+    mc.strokeStyle='rgba(255,215,60,0.75)';
+    mc.lineWidth=1.4;
     mc.stroke();
+    const ai=Math.floor(pts.length*0.5);
+    if (ai>0) drawArrow(mc,pts[ai-1][0],pts[ai-1][1],pts[ai][0],pts[ai][1],'rgba(255,215,60,0.9)');
   }
   mc.restore();
 }
 
-function draw2D() {
-  mc.clearRect(0, 0, W, H);
-  mc.fillStyle = '#0d0d1a';
-  mc.fillRect(0, 0, W, H);
-  const src = cfgs[cfg].src;
+// ---- EQUIPOTENTIAL LINES ----
+function drawEquipotentials(src, vmin, vmax) {
+  const step = parseInt(document.getElementById('eq-step').value);
+  const levels = [];
+  const start = Math.ceil(vmin/step)*step;
+  for (let lv=start; lv<=vmax; lv+=step) levels.push(lv);
+  if (levels.length===0) for(let i=1;i<=9;i++) levels.push(vmin+(vmax-vmin)*i/10);
 
-  // Find range using percentile clamp (avoids spikes near point sources dominating scale)
-  const samples = [];
-  for (let y = 10; y < H; y += 10) for (let x = 10; x < W; x += 10) samples.push(gv(x, y, src));
-  samples.sort((a,b) => a-b);
-  const lo = Math.floor(samples.length * 0.02), hi = Math.ceil(samples.length * 0.98);
-  let vmin = samples[lo], vmax = samples[hi];
-  if (vmax - vmin < 1) { vmin -= 1; vmax += 1; }
-
-  // Background gradient (faint)
-  const id = mc.createImageData(W, H);
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const v = gv(x, y, src);
-    const [r, g, b] = vc(v, vmin, vmax);
-    const i = (y*W + x)*4;
-    id.data[i]=r; id.data[i+1]=g; id.data[i+2]=b; id.data[i+3]=55;
+  const GS = 6;
+  mc.save();
+  for (const lv of levels) {
+    const [r,g,b] = vc(lv,vmin,vmax);
+    mc.strokeStyle = `rgba(${r},${g},${b},0.9)`;
+    mc.lineWidth = 1.6;
+    mc.beginPath();
+    for (let y=GS; y<H; y+=GS) {
+      for (let x=GS; x<W; x+=GS) {
+        const v00=gv(x-GS,y-GS,src),v10=gv(x,y-GS,src);
+        const v01=gv(x-GS,y,src),  v11=gv(x,y,src);
+        const edges=[
+          [v00,v10, x-GS,y-GS, x,y-GS],
+          [v10,v11, x,y-GS,    x,y],
+          [v01,v11, x-GS,y,    x,y],
+          [v00,v01, x-GS,y-GS, x-GS,y]
+        ];
+        const cross=edges.filter(([a,b])=>(a<lv)!==(b<lv))
+          .map(([a,b,x1,y1,x2,y2])=>{
+            const t=(lv-a)/(b-a);
+            return [x1+t*(x2-x1), y1+t*(y2-y1)];
+          });
+        if (cross.length>=2) {
+          mc.moveTo(cross[0][0],cross[0][1]);
+          mc.lineTo(cross[1][0],cross[1][1]);
+        }
+      }
+    }
+    mc.stroke();
+    // voltage label near right edge
+    for (let y=25; y<H-20; y+=70) {
+      const v=gv(W-20,y,src);
+      if (Math.abs(v-lv)<step*0.35) {
+        mc.fillStyle=`rgba(${r},${g},${b},1)`;
+        mc.font='bold 10px system-ui';
+        mc.textAlign='right'; mc.textBaseline='middle';
+        mc.fillText(lv+'V', W-4, y);
+      }
+    }
   }
-  mc.putImageData(id, 0, 0);
+  mc.restore();
+}
 
-  drawEquipotentials(src, vmin, vmax);
+// ---- DRAW 2D ----
+function draw2D() {
+  mc.clearRect(0,0,W,H);
+  mc.fillStyle='#0d0d1a'; mc.fillRect(0,0,W,H);
+  const src=cfgs[cfg].src;
+
+  const samples=[];
+  for(let y=10;y<H;y+=10) for(let x=10;x<W;x+=10) samples.push(gv(x,y,src));
+  samples.sort((a,b)=>a-b);
+  const lo=Math.floor(samples.length*0.02), hi=Math.ceil(samples.length*0.98)-1;
+  let vmin=samples[lo], vmax=samples[Math.min(hi,samples.length-1)];
+  if(vmax-vmin<1){vmin-=1;vmax+=1;}
+
+  // Heatmap
+  const id=mc.createImageData(W,H);
+  for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+    const v=gv(x,y,src), [r,g,b]=vc(v,vmin,vmax), i=(y*W+x)*4;
+    id.data[i]=r;id.data[i+1]=g;id.data[i+2]=b;id.data[i+3]=55;
+  }
+  mc.putImageData(id,0,0);
+
+  if (showEq) drawEquipotentials(src,vmin,vmax);
+  if (showEf) drawEfieldLines(src);
 
   // Draw sources
   for (const s of src) {
-    if (s.t === 'bar') {
+    if (s.t==='inf') {
       mc.save();
-      mc.fillStyle = s.col;
-      mc.shadowColor = s.col;
-      mc.shadowBlur = 10;
-      mc.fillRect(s.x*W - s.l*W/2, s.y*H - 6, s.l*W, 12);
-      mc.shadowBlur = 0;
-      mc.fillStyle = '#fff';
-      mc.font = 'bold 12px system-ui';
-      mc.textAlign = 'center';
-      mc.textBaseline = 'middle';
-      mc.fillText(s.v > 0 ? '+' : '−', s.x*W, s.y*H);
+      mc.strokeStyle=s.col; mc.lineWidth=4;
+      mc.shadowColor=s.col; mc.shadowBlur=8;
+      mc.beginPath(); mc.moveTo(0,s.y*H); mc.lineTo(W,s.y*H); mc.stroke();
+      mc.shadowBlur=0;
+      mc.fillStyle='#fff'; mc.font='bold 11px system-ui';
+      mc.textAlign='right'; mc.textBaseline='middle';
+      mc.fillText((s.v>0?'+':'')+s.v+'V', W-6, s.y*H-8);
       mc.restore();
-    } else if (s.t === 'pt') {
+    } else if (s.t==='bar') {
       mc.save();
-      mc.beginPath();
-      mc.arc(s.x*W, s.y*H, 14, 0, Math.PI*2);
-      mc.fillStyle = s.col;
-      mc.shadowColor = s.col;
-      mc.shadowBlur = 15;
-      mc.fill();
-      mc.shadowBlur = 0;
-      mc.fillStyle = '#fff';
-      mc.font = 'bold 14px system-ui';
-      mc.textAlign = 'center';
-      mc.textBaseline = 'middle';
-      mc.fillText(s.v > 0 ? '+' : '−', s.x*W, s.y*H);
+      mc.fillStyle=s.col; mc.shadowColor=s.col; mc.shadowBlur=10;
+      mc.fillRect(s.x*W-s.l*W/2,s.y*H-5,s.l*W,10);
+      mc.shadowBlur=0;
+      mc.fillStyle='#fff'; mc.font='bold 11px system-ui';
+      mc.textAlign='center'; mc.textBaseline='middle';
+      mc.fillText(s.v>0?'+':'-', s.x*W, s.y*H);
+      mc.restore();
+    } else if (s.t==='pt') {
+      mc.save();
+      mc.beginPath(); mc.arc(s.x*W,s.y*H,14,0,Math.PI*2);
+      mc.fillStyle=s.col; mc.shadowColor=s.col; mc.shadowBlur=15; mc.fill();
+      mc.shadowBlur=0;
+      mc.fillStyle='#fff'; mc.font='bold 14px system-ui';
+      mc.textAlign='center'; mc.textBaseline='middle';
+      mc.fillText(s.v>0?'+':'-', s.x*W, s.y*H);
       mc.restore();
     }
   }
 
-  // Draw probe dots
+  // Probe dots
   for (const p of probes) {
-    const v = p.v;
-    const [r, g, b] = vc(v, vmin, vmax);
+    const [r,g,b]=vc(p.v,vmin,vmax);
     mc.save();
-    mc.beginPath();
-    mc.arc(p.mx, p.my, 5, 0, Math.PI*2);
-    mc.fillStyle = `rgb(${r},${g},${b})`;
-    mc.strokeStyle = 'rgba(255,255,255,0.7)';
-    mc.lineWidth = 1.2;
+    mc.beginPath(); mc.arc(p.mx,p.my,5,0,Math.PI*2);
+    mc.fillStyle=`rgb(${r},${g},${b})`;
+    mc.strokeStyle='rgba(255,255,255,0.7)'; mc.lineWidth=1.2;
     mc.fill(); mc.stroke();
-    mc.font = '9px system-ui';
-    mc.fillStyle = '#eee';
-    mc.textAlign = 'center';
-    mc.textBaseline = 'bottom';
-    mc.fillText((Math.round(v*10)/10).toFixed(1), p.mx, p.my - 6);
+    mc.font='9px system-ui'; mc.fillStyle='#eee';
+    mc.textAlign='center'; mc.textBaseline='bottom';
+    mc.fillText((Math.round(p.v*10)/10).toFixed(1), p.mx, p.my-6);
     mc.restore();
   }
 }
 
-// 3D projection — azimuth (rot.y) spins horizontally, elevation (rot.x) tilts up/down
-function proj(nx, ny, nz) {
-  // Rotate around world Z-axis (azimuth) — spins scene left/right
-  const cosA = Math.cos(rot.y), sinA = Math.sin(rot.y);
-  const x1 =  nx*cosA + ny*sinA;
-  const y1 = -nx*sinA + ny*cosA;
-  const z1 = nz;
-  // Rotate around new X-axis (elevation) — tilts up/down
-  const cosE = Math.cos(rot.x), sinE = Math.sin(rot.x);
-  const x2 = x1;
-  const y2 = y1*cosE - z1*sinE;
-  const z2 = y1*sinE + z1*cosE;
-  const scale = 180;
-  const fov = 2.5 / (z2 + 3);
-  return [W/2 + x2*scale*fov, H/2 - y2*scale*fov, z2];
+// ---- 3D ----
+function proj(nx,ny,nz){
+  const cosA=Math.cos(rot.y),sinA=Math.sin(rot.y);
+  const x1=nx*cosA+ny*sinA, y1=-nx*sinA+ny*cosA, z1=nz;
+  const cosE=Math.cos(rot.x),sinE=Math.sin(rot.x);
+  const x2=x1, y2=y1*cosE-z1*sinE, z2=y1*sinE+z1*cosE;
+  const fov=2.5/(z2+3);
+  return [W/2+x2*180*fov, H/2-y2*180*fov, z2];
 }
 
-let showSpikes = true;
-
-function toggleSpikes() {
-  showSpikes = !showSpikes;
-  const btn = document.getElementById('btn-spikes');
-  btn.textContent = '📍 Spikes: ' + (showSpikes ? 'ON' : 'OFF');
-  btn.classList.toggle('on', showSpikes);
-  draw3D();
-}
-
-// IDW interpolation: estimate voltage at (qx,qy) from probes
-// Returns null if no probes yet
-function idw(qx, qy) {
-  if (probes.length === 0) return null;
-  let wsum = 0, vsum = 0;
-  for (const p of probes) {
-    const dx = qx - p.mx, dy = qy - p.my;
-    const d2 = dx*dx + dy*dy;
-    if (d2 < 0.01) return p.v; // exactly on a probe
-    const w = 1 / (d2 * d2); // power=4 for smoother falloff
-    wsum += w;
-    vsum += w * p.v;
+function idw(qx,qy){
+  if(!probes.length) return null;
+  let wsum=0,vsum=0;
+  for(const p of probes){
+    const dx=qx-p.mx,dy=qy-p.my,d2=dx*dx+dy*dy;
+    if(d2<0.01) return p.v;
+    const w=1/(d2*d2); wsum+=w; vsum+=w*p.v;
   }
-  return vsum / wsum;
+  return vsum/wsum;
 }
 
-function draw3D() {
-  sc.clearRect(0, 0, W, H);
-  sc.fillStyle = '#0d0d1a';
-  sc.fillRect(0, 0, W, H);
+function draw3D(){
+  sc.clearRect(0,0,W,H);
+  sc.fillStyle='#0d0d1a'; sc.fillRect(0,0,W,H);
 
-  if (probes.length === 0) {
-    sc.fillStyle = '#444';
-    sc.font = '13px system-ui';
-    sc.textAlign = 'center';
-    sc.textBaseline = 'middle';
-    sc.fillText('Click the map to start building the surface', W/2, H/2);
-    sc.fillStyle = '#666'; sc.font = '10px system-ui';
-    sc.textBaseline = 'bottom';
-    sc.fillText('drag to rotate', W/2, H-3);
+  if(!probes.length){
+    sc.fillStyle='#444'; sc.font='13px system-ui';
+    sc.textAlign='center'; sc.textBaseline='middle';
+    sc.fillText('Click the map to start building the surface',W/2,H/2);
+    sc.fillStyle='#555'; sc.font='10px system-ui'; sc.textBaseline='bottom';
+    sc.fillText('drag to rotate',W/2,H-3);
     return;
   }
 
-  // Compute vmin/vmax from probes (percentile)
-  const vs = probes.map(p => p.v).slice().sort((a,b) => a-b);
-  const lo = Math.floor(vs.length * 0.02), hi = Math.ceil(vs.length * 0.98) - 1;
-  let vmin = vs[Math.max(0,lo)], vmax = vs[Math.min(vs.length-1,hi)];
-  if (vmax - vmin < 1) { vmin -= 1; vmax += 1; }
+  const vs=probes.map(p=>p.v).slice().sort((a,b)=>a-b);
+  const lo=Math.floor(vs.length*0.02),hi=Math.ceil(vs.length*0.98)-1;
+  let vmin=vs[Math.max(0,lo)],vmax=vs[Math.min(vs.length-1,hi)];
+  if(vmax-vmin<1){vmin-=1;vmax+=1;}
+  const toNZ=v=>(v-vmin)/(vmax-vmin+0.001)*1.4-0.7;
 
-  const toNZ = v => (v - vmin) / (vmax - vmin + 0.001) * 1.4 - 0.7;
+  const GX=40,GY=34;
+  const grid=new Float32Array(GX*GY);
+  const hasData=new Uint8Array(GX*GY);
+  const maxReach=Math.max(W,H)*0.55;
 
-  // Build a dense grid via IDW — every cell gets a value
-  const GX = 40, GY = 34;
-  const grid = new Float32Array(GX * GY); // height at each vertex
-  const hasData = new Uint8Array(GX * GY);
-
-  // Only fill grid vertices that are within the convex "coverage" of probes.
-  // Use a simple max-distance cutoff so unprobed regions stay flat at z=-0.7.
-  // Find bounding radius of probe set for cutoff scaling.
-  const maxReach = Math.max(W, H) * 0.55; // within ~half the canvas
-
-  for (let j = 0; j < GY; j++) {
-    for (let i = 0; i < GX; i++) {
-      const px = (i / (GX-1)) * W;
-      const py = (j / (GY-1)) * H;
-      // Find nearest probe distance
-      let nearestD2 = Infinity;
-      for (const p of probes) {
-        const d2 = (px-p.mx)**2 + (py-p.my)**2;
-        if (d2 < nearestD2) nearestD2 = d2;
-      }
-      const idx = j * GX + i;
-      if (nearestD2 < maxReach * maxReach) {
-        const v = idw(px, py);
-        grid[idx] = toNZ(v);
-        hasData[idx] = 1;
-      } else {
-        grid[idx] = toNZ(0); // flat baseline for unvisited regions
-        hasData[idx] = 0;
-      }
-    }
+  for(let j=0;j<GY;j++) for(let i=0;i<GX;i++){
+    const px=(i/(GX-1))*W, py=(j/(GY-1))*H;
+    let nearD2=Infinity;
+    for(const p of probes){const d2=(px-p.mx)**2+(py-p.my)**2;if(d2<nearD2)nearD2=d2;}
+    const idx=j*GX+i;
+    if(nearD2<maxReach*maxReach){grid[idx]=toNZ(idw(px,py));hasData[idx]=1;}
+    else{grid[idx]=toNZ(0);hasData[idx]=0;}
   }
 
-  // Build quads, project, depth-sort, draw
-  const quads = [];
-  for (let j = 0; j < GY-1; j++) {
-    for (let i = 0; i < GX-1; i++) {
-      const i00 = j*GX+i, i10 = j*GX+(i+1), i01 = (j+1)*GX+i, i11 = (j+1)*GX+(i+1);
-      const nz00 = grid[i00], nz10 = grid[i10], nz01 = grid[i01], nz11 = grid[i11];
-      const vAvgNorm = (nz00+nz10+nz01+nz11)/4; // −0.7 to +0.7
-      const vAvg = (vAvgNorm + 0.7) / 1.4 * (vmax-vmin) + vmin;
-
-      const nx0 = (i/(GX-1))*2-1,   nx1 = ((i+1)/(GX-1))*2-1;
-      const ny0 = (j/(GY-1))*2-1,   ny1 = ((j+1)/(GY-1))*2-1;
-
-      const p00 = proj(nx0, ny0, nz00);
-      const p10 = proj(nx1, ny0, nz10);
-      const p11 = proj(nx1, ny1, nz11);
-      const p01 = proj(nx0, ny1, nz01);
-      const az = (p00[2]+p10[2]+p11[2]+p01[2])/4;
-      const covered = hasData[i00]||hasData[i10]||hasData[i01]||hasData[i11];
-      quads.push({ vAvg, p00, p10, p11, p01, az, covered });
-    }
+  const quads=[];
+  for(let j=0;j<GY-1;j++) for(let i=0;i<GX-1;i++){
+    const i00=j*GX+i,i10=j*GX+(i+1),i01=(j+1)*GX+i,i11=(j+1)*GX+(i+1);
+    const nz00=grid[i00],nz10=grid[i10],nz01=grid[i01],nz11=grid[i11];
+    const vAvgNorm=(nz00+nz10+nz01+nz11)/4;
+    const vAvg=(vAvgNorm+0.7)/1.4*(vmax-vmin)+vmin;
+    const nx0=(i/(GX-1))*2-1,nx1=((i+1)/(GX-1))*2-1;
+    const ny0=(j/(GY-1))*2-1,ny1=((j+1)/(GY-1))*2-1;
+    const p00=proj(nx0,ny0,nz00),p10=proj(nx1,ny0,nz10);
+    const p11=proj(nx1,ny1,nz11),p01=proj(nx0,ny1,nz01);
+    const az=(p00[2]+p10[2]+p11[2]+p01[2])/4;
+    const covered=hasData[i00]||hasData[i10]||hasData[i01]||hasData[i11];
+    quads.push({vAvg,p00,p10,p11,p01,az,covered});
   }
-  quads.sort((a,b) => b.az - a.az);
+  quads.sort((a,b)=>b.az-a.az);
 
-  for (const { vAvg, p00, p10, p11, p01, covered } of quads) {
-    const [r,g,b] = vc(vAvg, vmin, vmax);
-    const alpha = covered ? 0.88 : 0.18;
-    sc.fillStyle = `rgba(${r},${g},${b},${alpha})`;
-    sc.strokeStyle = `rgba(${r},${g},${b},${covered ? 0.25 : 0.08})`;
-    sc.lineWidth = 0.4;
+  for(const{vAvg,p00,p10,p11,p01,covered}of quads){
+    const[r,g,b]=vc(vAvg,vmin,vmax);
+    sc.fillStyle=`rgba(${r},${g},${b},${covered?0.88:0.18})`;
+    sc.strokeStyle=`rgba(${r},${g},${b},${covered?0.25:0.07})`;
+    sc.lineWidth=0.4;
     sc.beginPath();
-    sc.moveTo(p00[0],p00[1]);
-    sc.lineTo(p10[0],p10[1]);
-    sc.lineTo(p11[0],p11[1]);
-    sc.lineTo(p01[0],p01[1]);
-    sc.closePath();
-    sc.fill();
-    sc.stroke();
+    sc.moveTo(p00[0],p00[1]);sc.lineTo(p10[0],p10[1]);
+    sc.lineTo(p11[0],p11[1]);sc.lineTo(p01[0],p01[1]);
+    sc.closePath();sc.fill();sc.stroke();
   }
 
-  // Probe spikes (toggleable)
-  if (showSpikes) {
-    const baseNZ = toNZ(0) - 0.02; // floor of surface
-    for (const p of probes) {
-      const nx = p.mx/W*2-1, ny = p.my/H*2-1;
-      const nz = toNZ(p.v);
-      const [px2,py2] = proj(nx, ny, nz);
-      const [bx,by] = proj(nx, ny, baseNZ);
-      const [r,g,b] = vc(p.v, vmin, vmax);
-      sc.strokeStyle = `rgba(${r},${g},${b},0.9)`; sc.lineWidth = 1.5;
-      sc.beginPath(); sc.moveTo(bx,by); sc.lineTo(px2,py2); sc.stroke();
-      sc.beginPath(); sc.arc(px2, py2, 4, 0, Math.PI*2);
-      sc.fillStyle = `rgb(${r},${g},${b})`; sc.fill();
-      sc.strokeStyle = 'rgba(255,255,255,0.3)'; sc.lineWidth = 0.8; sc.stroke();
+  if(showSpikes){
+    const baseNZ=toNZ(0)-0.02;
+    for(const p of probes){
+      const nx=p.mx/W*2-1,ny=p.my/H*2-1,nz=toNZ(p.v);
+      const[px2,py2]=proj(nx,ny,nz),[bx,by]=proj(nx,ny,baseNZ);
+      const[r,g,b]=vc(p.v,vmin,vmax);
+      sc.strokeStyle=`rgba(${r},${g},${b},0.9)`;sc.lineWidth=1.5;
+      sc.beginPath();sc.moveTo(bx,by);sc.lineTo(px2,py2);sc.stroke();
+      sc.beginPath();sc.arc(px2,py2,4,0,Math.PI*2);
+      sc.fillStyle=`rgb(${r},${g},${b})`;sc.fill();
+      sc.strokeStyle='rgba(255,255,255,0.3)';sc.lineWidth=0.8;sc.stroke();
     }
   }
 
-  sc.fillStyle = '#666'; sc.font = '10px system-ui';
-  sc.textAlign = 'center'; sc.textBaseline = 'bottom';
-  sc.fillText('drag to rotate', W/2, H-3);
+  sc.fillStyle='#555';sc.font='10px system-ui';
+  sc.textAlign='center';sc.textBaseline='bottom';
+  sc.fillText('drag to rotate',W/2,H-3);
 }
 
-function render() { draw2D(); draw3D(); }
+// ---- TOGGLES ----
+function toggleEq(){
+  showEq=!showEq;
+  const b=document.getElementById('btn-eq');
+  b.textContent='Equipotentials: '+(showEq?'ON':'OFF');
+  b.classList.toggle('on',showEq);
+  draw2D();
+}
+function toggleEf(){
+  showEf=!showEf;
+  const b=document.getElementById('btn-ef');
+  b.textContent='E-field Lines: '+(showEf?'ON':'OFF');
+  b.classList.toggle('on',showEf);
+  draw2D();
+}
+function toggleSpikes(){
+  showSpikes=!showSpikes;
+  const b=document.getElementById('btn-spikes');
+  b.textContent='Spikes: '+(showSpikes?'ON':'OFF');
+  b.classList.toggle('on',showSpikes);
+  draw3D();
+}
 
-function clearAll() {
-  probes = [];
-  document.getElementById('vbadge').textContent = '';
-  document.getElementById('stat').textContent = '0 probes — click the map to begin';
+// ---- EVENTS ----
+function render(){draw2D();draw3D();}
+
+function clearAll(){
+  probes=[];
+  document.getElementById('vbadge').textContent='';
+  document.getElementById('stat').textContent='0 probes - click the map to begin';
   render();
 }
 
-document.getElementById('cfg').addEventListener('change', function() {
-  cfg = this.value; clearAll();
-});
+document.getElementById('cfg').addEventListener('change',function(){cfg=this.value;clearAll();});
 
-function gpos(e, c) {
-  const r = c.getBoundingClientRect();
-  return { x: (e.clientX - r.left)*c.width/r.width, y: (e.clientY - r.top)*c.height/r.height };
+function gpos(e,c){
+  const r=c.getBoundingClientRect();
+  return{x:(e.clientX-r.left)*c.width/r.width,y:(e.clientY-r.top)*c.height/r.height};
 }
 
-MC.addEventListener('click', function(e) {
-  const pos = gpos(e, MC), src = cfgs[cfg].src;
-  for (const s of src) {
-    if (s.t==='pt' && Math.sqrt((pos.x-s.x*W)**2+(pos.y-s.y*H)**2) < 18) return;
-    if (s.t==='bar' && Math.abs(pos.y-s.y*H) < 10 && pos.x > s.x*W-s.l*W/2 && pos.x < s.x*W+s.l*W/2) return;
+MC.addEventListener('click',function(e){
+  const pos=gpos(e,MC),src=cfgs[cfg].src;
+  for(const s of src){
+    if(s.t==='pt'&&Math.sqrt((pos.x-s.x*W)**2+(pos.y-s.y*H)**2)<18) return;
+    if(s.t==='bar'&&Math.abs(pos.y-s.y*H)<8&&pos.x>s.x*W-s.l*W/2&&pos.x<s.x*W+s.l*W/2) return;
+    if(s.t==='inf'&&Math.abs(pos.y-s.y*H)<6) return;
   }
-  const v = gv(pos.x, pos.y, src);
-  probes.push({ mx: pos.x, my: pos.y, v });
-  document.getElementById('vbadge').textContent = (Math.round(v*10)/10).toFixed(1) + ' V';
-  document.getElementById('stat').textContent = probes.length + ' probe' + (probes.length===1?'':'s') + ' — keep going!';
+  const v=gv(pos.x,pos.y,src);
+  probes.push({mx:pos.x,my:pos.y,v});
+  document.getElementById('vbadge').textContent=(Math.round(v*10)/10).toFixed(1)+' V';
+  document.getElementById('stat').textContent=probes.length+' probe'+(probes.length===1?'':'s')+' - keep going!';
   render();
 });
 
-MC.addEventListener('mousemove', function(e) {
-  const pos = gpos(e, MC);
-  document.getElementById('vbadge').textContent = (Math.round(gv(pos.x, pos.y, cfgs[cfg].src)*10)/10).toFixed(1) + ' V';
+MC.addEventListener('mousemove',function(e){
+  const pos=gpos(e,MC);
+  document.getElementById('vbadge').textContent=(Math.round(gv(pos.x,pos.y,cfgs[cfg].src)*10)/10).toFixed(1)+' V';
 });
 
-SC.addEventListener('mousedown', function(e) { drag = gpos(e,SC); rotStart = {x:rot.x,y:rot.y}; SC.style.cursor='grabbing'; });
-SC.addEventListener('mousemove', function(e) {
-  if (!drag) return;
-  const p = gpos(e, SC);
-  rot.x = rotStart.x + (p.y - drag.y)*0.009;
-  rot.y = rotStart.y + (p.x - drag.x)*0.009;
+SC.addEventListener('mousedown',function(e){drag=gpos(e,SC);rotStart={x:rot.x,y:rot.y};SC.style.cursor='grabbing';});
+SC.addEventListener('mousemove',function(e){
+  if(!drag)return;
+  const p=gpos(e,SC);
+  rot.x=rotStart.x+(p.y-drag.y)*0.009;
+  rot.y=rotStart.y+(p.x-drag.x)*0.009;
   draw3D();
 });
-SC.addEventListener('mouseup', () => { drag=null; SC.style.cursor='grab'; });
-SC.addEventListener('mouseleave', () => { drag=null; });
-
-SC.addEventListener('touchstart', function(e) { e.preventDefault(); drag=gpos(e.touches[0],SC); rotStart={x:rot.x,y:rot.y}; }, {passive:false});
-SC.addEventListener('touchmove', function(e) {
-  e.preventDefault(); if (!drag) return;
-  const p = gpos(e.touches[0], SC);
-  rot.x = rotStart.x + (p.y-drag.y)*0.009;
-  rot.y = rotStart.y + (p.x-drag.x)*0.009;
+SC.addEventListener('mouseup',()=>{drag=null;SC.style.cursor='grab';});
+SC.addEventListener('mouseleave',()=>{drag=null;});
+SC.addEventListener('touchstart',function(e){e.preventDefault();drag=gpos(e.touches[0],SC);rotStart={x:rot.x,y:rot.y};},{passive:false});
+SC.addEventListener('touchmove',function(e){
+  e.preventDefault();if(!drag)return;
+  const p=gpos(e.touches[0],SC);
+  rot.x=rotStart.x+(p.y-drag.y)*0.009;
+  rot.y=rotStart.y+(p.x-drag.x)*0.009;
   draw3D();
-}, {passive:false});
-SC.addEventListener('touchend', () => { drag=null; });
-
-MC.addEventListener('touchstart', function(e) {
+},{passive:false});
+SC.addEventListener('touchend',()=>{drag=null;});
+MC.addEventListener('touchstart',function(e){
   e.preventDefault();
-  const pos = gpos(e.touches[0], MC);
-  const v = gv(pos.x, pos.y, cfgs[cfg].src);
-  probes.push({ mx: pos.x, my: pos.y, v });
-  document.getElementById('stat').textContent = probes.length + ' probe' + (probes.length===1?'':'s') + ' — keep going!';
+  const pos=gpos(e.touches[0],MC);
+  const v=gv(pos.x,pos.y,cfgs[cfg].src);
+  probes.push({mx:pos.x,my:pos.y,v});
+  document.getElementById('stat').textContent=probes.length+' probe'+(probes.length===1?'':'s')+' - keep going!';
   render();
-}, {passive:false});
+},{passive:false});
 
 render();
 </script>
